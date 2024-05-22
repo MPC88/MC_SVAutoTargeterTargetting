@@ -12,9 +12,10 @@ namespace MC_SVAutoTargeterTargetting
     {
         public const string pluginGuid = "mc.starvalor.autotargetertargetting";
         public const string pluginName = "SV Auto Targeter Targetting";
-        public const string pluginVersion = "1.0.0";
+        public const string pluginVersion = "1.0.1";
 
         public static ConfigEntry<bool> cfg_OnlyIfNotarget;
+        public static ConfigEntry<bool> cfg_OnlyIfCloser;
         public static Transform playerTf;
         public static PlayerControl playerCont;
 
@@ -28,6 +29,11 @@ namespace MC_SVAutoTargeterTargetting
                 "Only auto target if no current target?",
                 true,
                 "If true, auto targetting an enemy who targets you only occurs if you have no current target.");
+
+            cfg_OnlyIfCloser = Config.Bind<bool>("1. Settings",
+                "Only auto target if new targetter is closer?",
+                true,
+                "If true, auto targetting an enemy who targets you only occurs if they are closer than current hostile target.");
         }
 
         [HarmonyPatch(typeof(AIControl), nameof(AIControl.SetNewTarget))]
@@ -50,7 +56,24 @@ namespace MC_SVAutoTargeterTargetting
                 return;
 
             if (__instance.target == playerTf)
+            {
+                if (cfg_OnlyIfCloser.Value && playerCont.target != null && playerCont.target != __instance.transform)
+                {
+                    AIControl curTAIC = playerCont.target.GetComponent<AIControl>();
+                    if (curTAIC != null)
+                    {
+                        SpaceShip curTAICSS = curTAIC.GetSS();
+                        if (curTAICSS != null && curTAICSS.ffSys != null && curTAICSS.ffSys.hostileToPlayer)
+                        {
+                            if (Vector3.Distance(playerTf.position, curTAIC.transform.position) <
+                               Vector3.Distance(playerTf.position, __instance.transform.position))
+                                return;
+                        }
+                    }
+                }
+
                 playerCont.SetTarget(__instance.transform);
+            }
         }
     }
 }
